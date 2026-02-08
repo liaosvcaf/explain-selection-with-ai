@@ -35,13 +35,15 @@ async function fetchModelsForProvider(
 ): Promise<ModelInfo[]> {
 	if (modelCache[provider]) return modelCache[provider];
 
+	let models: ModelInfo[];
 	switch (provider) {
 		case "openrouter": {
 			const response = await requestUrl({
 				url: "https://openrouter.ai/api/v1/models",
 				method: "GET",
 			});
-			return parseOpenRouterModels(response.json);
+			models = parseOpenRouterModels(response.json);
+			break;
 		}
 		case "openai": {
 			if (!apiKey) {
@@ -54,7 +56,8 @@ async function fetchModelsForProvider(
 					Authorization: `Bearer ${apiKey}`,
 				},
 			});
-			return filterOpenAIModels(response.json.data || []);
+			models = filterOpenAIModels(response.json.data || []);
+			break;
 		}
 		case "ollama": {
 			const ollamaUrl = deriveOllamaBaseUrl(baseURL || "");
@@ -62,11 +65,16 @@ async function fetchModelsForProvider(
 				url: `${ollamaUrl}/api/tags`,
 				method: "GET",
 			});
-			return parseOllamaModels(response.json);
+			models = parseOllamaModels(response.json);
+			break;
 		}
 		default:
 			throw new Error(`No model fetching for provider: ${provider}`);
 	}
+	
+	// Cache the fetched models
+	modelCache[provider] = models;
+	return models;
 }
 
 class ModelPickerModal extends Modal {
@@ -210,7 +218,6 @@ class ModelPickerModal extends Modal {
 				this.apiKey,
 				this.baseURL
 			);
-			modelCache[this.provider] = allModels;
 			renderModels("");
 		} catch (err: unknown) {
 			listEl.empty();
@@ -366,6 +373,8 @@ export class ExplainSelectionWithAiModal extends Modal {
 		let completionTokens = 0;
 		const startTime = Date.now();
 		let firstTokenTime: number | null = null;
+		let lastRenderTime = 0;
+		const RENDER_THROTTLE_MS = 50; // Throttle rendering to avoid UI lock on long outputs
 
 		const contentBox = contentEl.createEl("div", { cls: "selectable_text" });
 
@@ -403,8 +412,14 @@ export class ExplainSelectionWithAiModal extends Modal {
 						firstTokenTime = Date.now();
 					}
 					rollingText += chunk.choices[0].delta.content;
-					contentBox.empty();
-					MarkdownRenderer.render(this.app, rollingText, contentBox, "/", this.plugin);
+					
+					// Throttle rendering to avoid UI lock on long outputs
+					const now = Date.now();
+					if (now - lastRenderTime >= RENDER_THROTTLE_MS) {
+						contentBox.empty();
+						MarkdownRenderer.render(this.app, rollingText, contentBox, "/", this.plugin);
+						lastRenderTime = now;
+					}
 				}
 
 				if ((chunk as any).usage) {
@@ -412,6 +427,10 @@ export class ExplainSelectionWithAiModal extends Modal {
 					completionTokens = (chunk as any).usage.completion_tokens;
 				}
 			}
+			
+			// Final render to ensure all content is displayed
+			contentBox.empty();
+			MarkdownRenderer.render(this.app, rollingText, contentBox, "/", this.plugin);
 
 			const endTime = Date.now();
 			const totalDuration = endTime - startTime;
@@ -501,7 +520,16 @@ export class ExplainSelectionWithAiModal extends Modal {
 									new Notice(`Saved to ${finalPath}`);
 								}
 								const linkName = finalPath.replace(/\.md$/, "");
-								this.editor.replaceSelection(`[[${linkName}|${this.userSelection}]]`);
+								const alias = this.userSelection ?? "";
+								const hasProblemChars =
+									alias.length === 0 ||
+									alias.includes("|") ||
+									alias.includes("]") ||
+									alias.includes("\n");
+								const wikiLink = hasProblemChars
+									? `[[${linkName}]]`
+									: `[[${linkName}|${alias}]]`;
+								this.editor.replaceSelection(wikiLink);
 								this.close();
 							} catch (err) {
 								new Notice("Failed to save note.");
@@ -526,7 +554,13 @@ export class ExplainSelectionWithAiModal extends Modal {
 					new Notice(`Saved to ${fullPath}`);
 
 					const linkName = fullPath.replace(/\.md$/, "");
-					this.editor.replaceSelection(`[[${linkName}|${this.userSelection}]]`);
+					const selectionAlias = this.userSelection;
+					const hasUnsafeAliasChars =
+						!selectionAlias || /[|\]\n\r]/.test(selectionAlias);
+					const wikiLink = hasUnsafeAliasChars
+						? `[[${linkName}]]`
+						: `[[${linkName}|${selectionAlias}]]`;
+					this.editor.replaceSelection(wikiLink);
 
 					this.close();
 				} catch (err) {

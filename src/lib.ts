@@ -11,8 +11,6 @@ export interface ExplainSelectionWithAiPluginSettings {
 	openRouterTitle: string;
 	systemPrompt: string;
 	userPromptTemplate: string;
-	// Saving
-	saveDirectory: string;
 }
 
 export const DEFAULT_SETTINGS: ExplainSelectionWithAiPluginSettings = {
@@ -26,7 +24,6 @@ export const DEFAULT_SETTINGS: ExplainSelectionWithAiPluginSettings = {
 	openRouterTitle: "Obsidian Explain Selection",
 	systemPrompt: "You are a helpful assistant.",
 	userPromptTemplate: 'Explain "{{selection}}" in the context of "{{context}}"',
-	saveDirectory: "",
 };
 
 export interface ModelInfo {

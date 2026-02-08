@@ -117,7 +117,7 @@ Extract all logic with zero Obsidian dependencies into `lib.ts`. Test with Jest.
 Mock `requestUrl` from Obsidian to test `fetchModelsForProvider()` end-to-end without real HTTP calls.
 
 **Approach:**
-- Keep `fetchModelsForProvider` in `main.ts` but refactor to accept a `fetcher` function parameter (dependency injection)
+- Keep `fetchModelsForProvider` in `src/main.ts` but refactor to accept a `fetcher` function parameter (dependency injection)
 - OR: move fetch logic to `lib.ts` with a generic `fetcher` parameter instead of importing `requestUrl` directly
 
 **Test file: `integration.test.ts`**
@@ -181,7 +181,7 @@ These CANNOT be automated without a full Obsidian runtime. Document as a checkli
 
 #### Core Functionality (Right-Click > Explain)
 
-- [ ] Select text in editor, right-click shows "Expand on ... in context with AI"
+- [ ] Select text in editor, right-click shows context menu item whose label is derived from `userPromptTemplate` (default: starts with "Explain ..." and ends with "...")
 - [ ] Menu item label truncates selection longer than 24 chars
 - [ ] Clicking opens modal with selected text as title
 - [ ] Response streams in with markdown rendering
@@ -220,16 +220,18 @@ Use one of these approaches if full automation is desired:
 ### Directory Structure
 
 ```
-/
-├── main.ts              # Obsidian-dependent code (plugin, modals, settings UI)
-├── lib.ts               # Pure logic (no obsidian imports) - TESTABLE
-├── lib.test.ts          # Unit tests for lib.ts
-├── integration.test.ts  # Integration tests with mocked fetcher
-├── jest.config.js       # Jest configuration
-├── tsconfig.json        # TypeScript config (exclude test files from build)
-├── package.json         # Added jest, ts-jest, @types/jest
-├── TEST_PLAN.md         # This file
-└── SMOKE_TESTS.md       # Manual test checklist
+├── src/
+│   ├── main.ts              # Obsidian-dependent code (plugin, modals, settings UI)
+│   └── lib.ts               # Pure logic (no obsidian imports) - TESTABLE
+├── tests/
+│   ├── lib.test.ts          # Unit tests for lib.ts
+│   └── integration.test.ts  # Integration tests with mocked fetcher
+├── jest.config.js           # Jest configuration
+├── tsconfig.json            # TypeScript config (exclude test files from build)
+├── package.json             # Added jest, ts-jest, @types/jest
+└── docs/
+    ├── TEST_PLAN.md         # This file
+    └── SMOKE_TESTS.md       # Manual test checklist
 ```
 
 ### CI Pipeline (GitHub Actions)

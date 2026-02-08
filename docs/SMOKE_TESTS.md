@@ -41,7 +41,7 @@ Run these manually in Obsidian before each release.
 
 ## Core Functionality
 
-- [ ] Select text, right-click shows "Expand on ... in context with AI"
+- [ ] Select text, right-click shows context menu label starting with "Explain ..." (template-driven; wording may vary if prompt/template is customized)
 - [ ] Menu label truncates selection >24 chars
 - [ ] Modal opens with selected text as title
 - [ ] Response streams in with markdown rendering
